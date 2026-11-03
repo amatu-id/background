@@ -12,3 +12,6 @@ Penghapus latar foto di browser — bagian dari Portal AMATU (`amatu-id.github.i
 - Ekspor PNG/JPG/WEBP/PDF (pas gambar, A4/F4/Letter/4R, penuhi halaman dengan salinan pas foto), salin, bagikan; banyak foto → ZIP / 1 PDF, terapkan gaya ke semua.
 
 Tanpa build: `index.html` + `css/app.css` + `js/` (ES modules: `app.js` UI, `render.js` pipeline & komposit, `matte.js` algoritma alpha, `seg.worker.js` AI, `store.js` IndexedDB `amatu-background`).
+
+## Model
+`models/isnet_*.onnx` = salinan IS-Net dari [onnx-community/ISNet-ONNX](https://huggingface.co/onnx-community/ISNet-ONNX) (Apache-2.0), dipakai lebih dulu agar unduhan andal; RMBG-1.4 (lisensi BRIA, non-komersial) selalu diambil dari Hugging Face. Unduhan dicoba ulang & dilanjutkan (Range); bila satu model gagal, model lain dipakai.

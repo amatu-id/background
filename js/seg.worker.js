@@ -10,8 +10,9 @@ const MODELS = {
   // IS-Net (DIS) — tepi tajam & detail halus
   isnet: {
     size: 1024, mean: [.5, .5, .5], std: [1, 1, 1], act: 'minmax',
-    gpu: { url: 'onnx-community/ISNet-ONNX/resolve/main/onnx/model_fp16.onnx', mb: 88 },
-    cpu: { url: 'onnx-community/ISNet-ONNX/resolve/main/onnx/model_quantized.onnx', mb: 44 },
+    // cermin di GitHub Pages sendiri (Apache-2.0) lebih andal; Hugging Face sebagai cadangan
+    gpu: { url: 'onnx-community/ISNet-ONNX/resolve/main/onnx/model_fp16.onnx', mirror: '../models/isnet_fp16.onnx', mb: 88 },
+    cpu: { url: 'onnx-community/ISNet-ONNX/resolve/main/onnx/model_quantized.onnx', mirror: '../models/isnet_quantized.onnx', mb: 44 },
   },
   // RMBG-1.4 (BRIA) — cepat dan ringan
   rmbg: {
@@ -29,27 +30,52 @@ async function gpuOK() {
   try { if (!self.navigator.gpu) return false; const a = await navigator.gpu.requestAdapter(); return !!a; } catch (e) { return false; }
 }
 
-async function fetchModel(url, mb) {
+async function fetchModel(v) {
+  // kunci cache = URL Hugging Face, apa pun sumber unduhannya
+  const key = HF + v.url;
   let cache = null;
   try { cache = await caches.open(CACHE); } catch (e) { }
   if (cache) {
-    const hit = await cache.match(url);
+    const hit = await cache.match(key);
     if (hit) { post({ type: 'progress', stage: 'cache' }); return new Uint8Array(await hit.arrayBuffer()); }
   }
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Gagal mengunduh model (HTTP ' + res.status + ')');
-  const total = +res.headers.get('content-length') || mb * 1e6;
-  const reader = res.body.getReader(), chunks = []; let got = 0, last = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value); got += value.length;
-    const now = Date.now();
-    if (now - last > 120) { last = now; post({ type: 'progress', stage: 'download', loaded: got, total }); }
+  const srcs = [];
+  if (base !== HF) srcs.push(base + v.url);
+  else { if (v.mirror) srcs.push(new URL(v.mirror, import.meta.url).href); srcs.push(HF + v.url); }
+  let err;
+  for (const u of srcs) {
+    try { const buf = await download(u, v.mb, srcs.length > 1 && u !== srcs[srcs.length - 1] ? 2 : 7); if (cache) { try { await cache.put(key, new Response(buf, { headers: { 'content-type': 'application/octet-stream' } })); } catch (e) { } } return buf; }
+    catch (e) { err = e; }
   }
+  throw err;
+}
+
+async function download(url, mb, tries) {
+  // unduh dengan percobaan ulang; bila putus di tengah, lanjutkan dari byte terakhir (Range)
+  const chunks = []; let got = 0, last = 0, total = 0, err = null;
+  for (let attempt = 0; attempt < tries; attempt++) {
+    if (attempt) { post({ type: 'progress', stage: 'retry', attempt, loaded: got, total: total || mb * 1e6 }); await new Promise(r => setTimeout(r, Math.min(8000, 1200 * attempt))); }
+    try {
+      const res = await fetch(url, got ? { headers: { Range: 'bytes=' + got + '-' } } : undefined);
+      if (!res.ok) { err = new Error('Gagal mengunduh model (HTTP ' + res.status + ')'); if (res.status === 404) break; continue; }
+      if (got && res.status !== 206) { chunks.length = 0; got = 0; }   // server mengabaikan Range → mulai ulang
+      if (!total) total = (+res.headers.get('content-length') || 0) + got || mb * 1e6;
+      const reader = res.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value); got += value.length;
+        const now = Date.now();
+        if (now - last > 120) { last = now; post({ type: 'progress', stage: 'download', loaded: got, total }); }
+      }
+      err = null;
+      break;
+    } catch (e) { err = new Error('Koneksi ke server model terputus — periksa internet lalu coba lagi'); }
+  }
+  if (err) throw err;
   const buf = new Uint8Array(got); let o = 0;
   for (const c of chunks) { buf.set(c, o); o += c.length; }
-  if (cache) { try { await cache.put(url, new Response(buf, { headers: { 'content-type': 'application/octet-stream' } })); } catch (e) { } }
+  if (/<html|<!doctype/i.test(new TextDecoder().decode(buf.subarray(0, 64)))) throw new Error('Model tidak ditemukan');
   return buf;
 }
 
@@ -72,7 +98,7 @@ async function load(name, device) {
   await runtime(useGPU);
   const v = useGPU ? M.gpu : M.cpu;
   post({ type: 'progress', stage: 'model', model: name, mb: v.mb });
-  const buf = await fetchModel(base + v.url, v.mb);
+  const buf = await fetchModel(v);
   post({ type: 'progress', stage: 'init', model: name });
   let s;
   try {
@@ -140,7 +166,13 @@ async function inferAll(bmp, sx, sy, sw, sh, names, cw, ch, id, pass) {
 }
 
 async function segment({ id, rgba, w, h, models, device, detail, clean }) {
-  for (const n of models) await load(n, device);
+  // model yang gagal dimuat dilewati; bila semuanya gagal, coba IS-Net (tersedia di cermin sendiri)
+  const ok = [];
+  let lastErr;
+  for (const n of models) { try { await load(n, device); ok.push(n); } catch (e) { lastErr = e; post({ type: 'progress', id, stage: 'skip', model: n }); } }
+  if (!ok.length && !models.includes('isnet')) { try { await load('isnet', device); ok.push('isnet'); } catch (e) { lastErr = e; } }
+  if (!ok.length) throw lastErr;
+  models = ok;
   const M = MODELS[models[0]];
   const bmp = await createImageBitmap(new ImageData(new Uint8ClampedArray(rgba), w, h));
   const L = Math.max(w, h), G = Math.min(L, 1536), gw = Math.max(1, Math.round(w * G / L)), gh = Math.max(1, Math.round(h * G / L));
@@ -173,7 +205,7 @@ async function segment({ id, rgba, w, h, models, device, detail, clean }) {
   bmp.close && bmp.close();
   const u8 = new Uint8Array(gw * gh);
   for (let i = 0; i < u8.length; i++) u8[i] = Math.round(m[i] * 255);
-  post({ type: 'mask', id, mask: u8.buffer, gw, gh, passes, ms: Math.round(performance.now() - t0), ep }, [u8.buffer]);
+  post({ type: 'mask', id, mask: u8.buffer, gw, gh, passes, ms: Math.round(performance.now() - t0), ep, models }, [u8.buffer]);
 }
 
 self.onmessage = async e => {

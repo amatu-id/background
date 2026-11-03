@@ -192,7 +192,11 @@ async function pump() {
     console.error(e);
     const it = await ST.getItem(running);
     if (it) { it.status = 'err'; it.err = String(e.message || e); await ST.putItem(it); }
-    if (E.id === running) showBusy(false), toast('Gagal memproses: ' + (e.message || e), 5000), renderPanel();
+    if (E.id === running) {
+      if (it) E.it = it;
+      showBusy(false); drawEmpty('Gagal memproses — buka tab AI lalu tekan "Proses ulang"');
+      toast('Gagal memproses: ' + (e.message || e), 6000); E.tab = 'ai'; renderPanel();
+    }
   }
   delete progress[running];
   running = null;
@@ -216,6 +220,8 @@ async function processItem(it, force) {
       if (m.stage === 'runtime') setP('Menyiapkan AI…', 'Memuat runtime ONNX', 0);
       else if (m.stage === 'model') setP('Mengunduh model AI…', `${m.model === 'isnet' ? 'IS-Net' : 'RMBG-1.4'} · ±${m.mb} MB · sekali saja, berikutnya instan`, 0);
       else if (m.stage === 'download') setP('Mengunduh model AI…', `${(m.loaded / 1e6).toFixed(0)} / ${(m.total / 1e6).toFixed(0)} MB · sekali saja`, m.loaded / m.total);
+      else if (m.stage === 'retry') setP('Menyambung ulang unduhan…', `Percobaan ${m.attempt} · ${(m.loaded / 1e6).toFixed(0)} / ${(m.total / 1e6).toFixed(0)} MB`, m.loaded / m.total);
+      else if (m.stage === 'skip') setP('Model cadangan…', `${m.model === 'isnet' ? 'IS-Net' : 'RMBG-1.4'} tidak bisa diunduh, memakai model lain`, .3);
       else if (m.stage === 'cache') setP('Memuat model…', 'Dari cache perangkat', .5);
       else if (m.stage === 'init') setP('Menyiapkan model…', gpu ? 'GPU (WebGPU)' : 'CPU', .9);
       else if (m.stage === 'infer') setP('Menghapus latar…', `${m.pass === 2 ? 'Lintasan detail (zoom ke objek)' : 'Menganalisis objek'}${m.steps > 1 ? ` · model ${m.step}/${m.steps}` : ''}`, ((m.pass - 1) * (m.steps || 1) + (m.step || 1) - .5) / (2 * (m.steps || 1)));
@@ -226,7 +232,7 @@ async function processItem(it, force) {
   const u = new Uint8Array(r.mask);
   await ST.putBlob(it.id + ':coarse', await grayToBlob(u, r.gw, r.gh));
   const cur = (await ST.getItem(it.id)) || it;
-  Object.assign(cur, { gw: r.gw, gh: r.gh, status: 'done', err: null, ai: { q, ep: r.ep, ms: Math.round(performance.now() - t0), passes: r.passes } });
+  Object.assign(cur, { gw: r.gw, gh: r.gh, status: 'done', err: null, ai: { q, ep: r.ep, ms: Math.round(performance.now() - t0), passes: r.passes, models: r.models } });
   // thumbnail hasil
   try {
     const doc = new Doc({ w: cur.w, h: cur.h, bitmap: await createImageBitmap(new ImageData(new Uint8ClampedArray(rgba.buffer), cur.w, cur.h)), rgba, coarse: u, gw: r.gw, gh: r.gh, edit: null, s: fillSettings(cur.settings) });
@@ -808,7 +814,7 @@ const TABS = {
     const it = E.it || {}, a = it.ai || {};
     const st = it.status === 'done' ? (it.note === 'alpha bawaan' ? 'Memakai transparansi bawaan PNG' : `Selesai · ${a.ms ? (a.ms / 1000).toFixed(1) + ' dtk' : ''}${a.passes > 1 ? ' · 2 lintasan' : ''}`) : it.status === 'err' ? 'Gagal: ' + esc(it.err || '') : it.status === 'proc' ? 'Memproses…' : 'Antre';
     return `<h3>Hapus latar otomatis</h3>
-      <div class="stat"><span>Status</span><b>${st}</b><span>Model</span><b>${a.q ? QUAL[a.q].label + ' · ' + QUAL[a.q].models.map(m => m === 'isnet' ? 'IS-Net' : 'RMBG-1.4').join(' + ') : '–'}</b><span>Perangkat</span><b>${a.ep ? (a.ep === 'webgpu' ? 'GPU (WebGPU)' : 'CPU (WASM)') : '–'}</b><span>Ukuran</span><b>${it.w || '–'} × ${it.h || '–'} px</b></div>
+      <div class="stat"><span>Status</span><b>${st}</b><span>Model</span><b>${a.q ? QUAL[a.q].label + ' · ' + (a.models || QUAL[a.q].models).map(m => m === 'isnet' ? 'IS-Net' : 'RMBG-1.4').join(' + ') : '–'}</b><span>Perangkat</span><b>${a.ep ? (a.ep === 'webgpu' ? 'GPU (WebGPU)' : 'CPU (WASM)') : '–'}</b><span>Ukuran</span><b>${it.w || '–'} × ${it.h || '–'} px</b></div>
       <h4>Kualitas AI</h4>
       ${op('ai.quality', [['auto', 'Otomatis'], ['ultra', 'Ultra', '2 model'], ['detail', 'Detail', 'rambut'], ['fast', 'Cepat', 'ringan']], 'c4')}
       ${tg('ai.detail', 'Lintasan detail (zoom ke objek)')}
