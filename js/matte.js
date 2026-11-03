@@ -215,6 +215,116 @@ export function cleanSpecks(m, w, h, frac = .02, thr = .5) {
   return out;
 }
 
+// ---------- gabungkan peta beberapa model ----------
+// Rata-rata biasa membuat objek setengah transparan bila satu model ragu (mis. IS-Net 0.3 di badan, RMBG 1.0).
+// Di sini model paling yakin jadi acuan; model lain hanya ikut menentukan di pita tepi/rambut acuan,
+// dengan bobot sebesar keyakinannya per piksel.
+// porsi area objek (> 0.1) yang nilainya ragu-ragu (< 0.88) — model yang gagal biasanya > 0.3
+export function uncertainty(m, n) {
+  let a = 0, u = 0;
+  for (let i = 0; i < n; i++) { const v = m[i]; if (v > .1) { a++; if (v < .88) u++; } }
+  return a ? u / a : 1;
+}
+
+export function fuseMaps(maps, w, h) {
+  if (maps.length < 2) return maps[0];
+  const n = w * h, unc = maps.map(m => uncertainty(m, n));
+  let pi = 0;
+  for (let k = 1; k < maps.length; k++) if (unc[k] < unc[pi] - .01) pi = k;
+  const p = maps[pi], umin = unc[pi];
+  // model yang jauh lebih ragu daripada acuan nyaris tidak dipakai
+  const g = unc.map(u => u <= umin * 1.6 + .03 ? 1 : Math.max(.04, .25 * umin / u));
+  const band = new Float32Array(n);
+  for (let i = 0; i < n; i++) band[i] = 1 - Math.abs(2 * p[i] - 1);
+  const bs = gauss(minmax(band, w, h, 2, true), w, h, 1.5);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = 0, ws = 0;
+    for (let k = 0; k < maps.length; k++) { const v = maps[k][i], wt = g[k] * (.08 + Math.abs(2 * v - 1)); s += v * wt; ws += wt; }
+    const t = Math.min(1, bs[i] * 1.5);
+    out[i] = p[i] + (s / ws - p[i]) * t;
+  }
+  return out;
+}
+
+// ---------- buang garis tepi stiker / sisa pinggiran berwarna seragam ----------
+// Gambar stiker sering punya garis luar (abu, putih, hitam) yang ikut dianggap objek oleh AI.
+// Deteksi: pita terluar masker berwarna seragam, berbeda dari latar dan dari isi objek di dalamnya.
+// Hapus: isi banjir dari luar ke piksel berwarna garis itu, dibatasi kedalaman; area yang "bocor"
+// sampai batas kedalaman dikembalikan (berarti itu memang bagian objek yang warnanya mirip).
+export function trimRim(m, rgba, w, h) {
+  const n = w * h, inside = new Uint8Array(n), outside = new Uint8Array(n);
+  for (let i = 0; i < n; i++) { if (m[i] >= .5) inside[i] = 1; else outside[i] = 1; }
+  const b = bbox(m, w, h, .5);
+  if (!b) return m;
+  const S = Math.max(b.w, b.h), D = Math.max(4, Math.round(S * .035));
+  const dIn = edt(outside, w, h), dOut = edt(inside, w, h);
+  const col = i => [rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]];
+  const med = arr => { if (arr.length < 50) return null; const r = [0, 1, 2].map(c => arr.map(v => v[c]).sort((a, b) => a - b)[arr.length >> 1]); return r; };
+  const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+  const rim = [], bgc = [], inner = [];
+  const step = Math.max(1, Math.round(n / 400000));
+  for (let i = 0; i < n; i += step) {
+    if (inside[i]) { if (dIn[i] >= 1.5 && dIn[i] <= 5) rim.push(col(i)); else if (dIn[i] >= D && dIn[i] <= D * 1.6) inner.push(col(i)); }
+    else if (dOut[i] >= 2 && dOut[i] <= 6) bgc.push(col(i));
+  }
+  const cr = med(rim), cb = med(bgc), ci = med(inner);
+  if (!cr || !cb || !ci) return m;
+  const T = 30, near = (arr, c) => arr.reduce((s, v) => s + (dist(v, c) < T ? 1 : 0), 0) / arr.length;
+  if (near(rim, cr) < .5 || dist(cr, cb) < 20 || dist(cr, ci) < 45 || near(inner, cr) > .3) return m;
+  // banjir dari luar ke piksel yang warnanya lebih dekat ke garis daripada ke isi objek (≤ D px dari tepi)
+  const flood = new Uint8Array(n), stack = new Int32Array(n);
+  let sp = 0;
+  const isRim = i => { if (dIn[i] >= D) return false; const c = col(i), dr = dist(c, cr); return dr < 55 && dr < dist(c, ci) * .75; };
+  for (let i = 0; i < n; i++) if (inside[i] && dIn[i] <= 3 && isRim(i)) { flood[i] = 1; stack[sp++] = i; }
+  while (sp) {
+    const p = stack[--sp], x = p % w;
+    const nb = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p - w, p + w];
+    for (const q of nb) if (q >= 0 && q < n && inside[q] && !flood[q] && isRim(q)) { flood[q] = 1; stack[sp++] = q; }
+  }
+  let edge = 0, hit = 0;
+  const over = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    if (inside[i] && dIn[i] <= 3) { edge++; if (flood[i]) hit++; }
+    if (flood[i] && dIn[i] > D * .8) over[i] = 1;
+  }
+  if (!edge || hit / edge < .4) return m;
+  // kedalaman garis setempat → semua piksel yang lebih dangkal ikut dibuang (tak tersisa cincin tipis di luar)
+  const keep = gauss(over, w, h, D / 3), dep = new Float32Array(n);
+  for (let i = 0; i < n; i++) dep[i] = flood[i] && keep[i] < .02 ? dIn[i] : 0;
+  const Dl = gauss(minmax(dep, w, h, Math.max(2, D / 3), true), w, h, 1.5);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const d = Dl[i];
+    if (d < .5 || keep[i] >= .02) { out[i] = m[i]; continue; }
+    let t = (dIn[i] - d + .75) / 1.5; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    out[i] = m[i] * t;
+  }
+  return out;
+}
+
+// ---------- tingkatkan detail objek (natural: tanpa halo, tanpa menaikkan noise) ----------
+// detail halus + tekstur menengah pada luma; hasil dijepit ke min/maks 3×3 lokal agar tak muncul pinggiran terang/gelap.
+export function enhance(px, alpha, w, h, amt) {
+  if (amt <= 0) return;
+  const n = w * h, L = new Float32Array(n);
+  for (let i = 0, j = 0; i < n; i++, j += 4) L[i] = .299 * px[j] + .587 * px[j + 1] + .114 * px[j + 2];
+  const B1 = gauss(L, w, h, .9), B2 = gauss(L, w, h, 3.2);
+  const lo = minmax(L, w, h, 1, false), hi = minmax(L, w, h, 1, true);
+  const k1 = amt * 1.5, k2 = amt * .75, room = 3 + amt * 5;
+  const ae = alpha ? minmax(alpha, w, h, 2, false) : null;
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    const wt = ae ? ae[i] : 1;
+    if (wt <= .02) continue;
+    let f = L[i] - B1[i]; const af = Math.abs(f);
+    f = af < 1.5 ? 0 : (f > 0 ? af - 1.5 : 1.5 - af);   // abaikan noise/JPEG halus
+    let v = L[i] + f * k1 + (B1[i] - B2[i]) * k2;
+    if (v < lo[i] - room) v = lo[i] - room; else if (v > hi[i] + room) v = hi[i] + room;
+    const d = (v - L[i]) * wt;
+    px[j] += d; px[j + 1] += d; px[j + 2] += d;
+  }
+}
+
 // kotak pembatas (nilai ≥ thr)
 export function bbox(m, w, h, thr = .5) {
   let x0 = w, y0 = h, x1 = -1, y1 = -1;

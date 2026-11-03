@@ -1,13 +1,13 @@
 // render.js — Doc: peta AI → alpha akhir → lapisan (subjek, outline, bayangan) → komposit kanvas.
 // Satuan "u": 1 u = sisi terpanjang objek / 1000 px, sehingga ketebalan outline dll. konsisten di semua ukuran.
-import * as MT from './matte.js';
+import * as MT from './matte.js?v=2026110302';
 
 export const DEFAULTS = {
-  ai: { quality: 'auto', detail: true, clean: true },
+  ai: { quality: 'auto', detail: true, clean: true, rim: true },
   edge: { detail: 75, shift: 0, smooth: 0, feather: 0, hard: 0, decon: 60 },
   outline: { on: false, color: '#ffffff', width: 14, opacity: 100, smooth: 4, style: 'solid', on2: false, color2: '#111827', width2: 4 },
   shadow: { on: false, color: '#000000', opacity: 45, blur: 18, dist: 16, angle: 90, floor: false, floorOp: 45, floorW: 85, refl: false, reflOp: 30 },
-  adj: { fx: 'none', bright: 0, contrast: 0, sat: 0, warm: 0, sharp: 0 },
+  adj: { fx: 'none', bright: 0, contrast: 0, sat: 0, warm: 0, sharp: 0, enh: 50 },
   bg: { type: 'none', color: '#ffffff', g1: '#a78bfa', g2: '#22d3ee', gAngle: 135, gType: 'linear', blur: 14, dim: 0, hasImg: false },
   canvas: { preset: 'orig', w: 1080, h: 1080, pad: 6, scale: 100, x: 0, y: 0, rot: 0, flip: false },
   export: { fmt: 'png', q: 92, mult: 1, maxW: 0, jpgBg: '#ffffff', pdfPage: 'fit', pdfOrient: 'auto', pdfMargin: 10, pdfFill: false },
@@ -173,6 +173,7 @@ export class Doc {
     const kS = kA + JSON.stringify([e.decon, s.adj]);
     if (C.kS !== kS) {
       const col = MT.decontaminate(L.rgba, C.alpha, L.w, L.h, e.decon / 100);
+      MT.enhance(col, C.alpha, L.w, L.h, (s.adj.enh || 0) / 100);
       adjust(col, n, s.adj, L.w, L.h);
       C.col = col;
       const img = new ImageData(L.w, L.h), d = img.data;

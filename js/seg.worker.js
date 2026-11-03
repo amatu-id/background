@@ -1,6 +1,6 @@
 // seg.worker.js — segmentasi latar di perangkat (onnxruntime-web, WebGPU bila ada, else WASM).
 // Model diunduh sekali dari Hugging Face lalu disimpan di Cache API (bukan IndexedDB, agar tidak ikut tersinkron).
-import { resize, cleanSpecks, bbox, toHalf, fromHalf } from './matte.js';
+import { resize, cleanSpecks, bbox, toHalf, fromHalf, fuseMaps, trimRim, uncertainty } from './matte.js?v=2026110302';
 
 const ORT_BASE = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/';
 const HF = 'https://huggingface.co/';
@@ -154,19 +154,17 @@ async function infer(bmp, sx, sy, sw, sh, name) {
   return m;
 }
 
-// beberapa model → rata-rata peta (ensembel); area yang diperdebatkan menjadi semi-transparan (rambut tipis)
+// beberapa model → digabung (fuseMaps): model paling yakin jadi acuan, model lain menyempurnakan tepi/rambut
 async function inferAll(bmp, sx, sy, sw, sh, names, cw, ch, id, pass) {
-  let acc = null;
+  const maps = [];
   for (let k = 0; k < names.length; k++) {
     post({ type: 'progress', id, stage: 'infer', pass, step: k + 1, steps: names.length });
-    const m = resize(await infer(bmp, sx, sy, sw, sh, names[k]), MODELS[names[k]].size, MODELS[names[k]].size, cw, ch);
-    if (!acc) acc = m; else for (let i = 0; i < m.length; i++) acc[i] += m[i];
+    maps.push(resize(await infer(bmp, sx, sy, sw, sh, names[k]), MODELS[names[k]].size, MODELS[names[k]].size, cw, ch));
   }
-  if (names.length > 1) for (let i = 0; i < acc.length; i++) acc[i] /= names.length;
-  return acc;
+  return fuseMaps(maps, cw, ch);
 }
 
-async function segment({ id, rgba, w, h, models, device, detail, clean }) {
+async function segment({ id, rgba, w, h, models, device, detail, clean, rim }) {
   // model yang gagal dimuat dilewati; bila semuanya gagal, coba IS-Net (tersedia di cermin sendiri)
   const ok = [];
   let lastErr;
@@ -180,6 +178,17 @@ async function segment({ id, rgba, w, h, models, device, detail, clean }) {
   const t0 = performance.now();
   let m = await inferAll(bmp, 0, 0, w, h, models, gw, gh, id, 1);
   let passes = 1;
+  // satu model tapi hasilnya ragu (objek setengah transparan) → minta pendapat model lain lalu gabungkan
+  if (models.length === 1 && uncertainty(m, gw * gh) > .3) {
+    const alt = models[0] === 'isnet' ? 'rmbg' : 'isnet';
+    try {
+      await load(alt, device);
+      post({ type: 'progress', id, stage: 'infer', pass: 1, step: 2, steps: 2 });
+      const m2 = resize(await infer(bmp, 0, 0, w, h, alt), MODELS[alt].size, MODELS[alt].size, gw, gh);
+      m = fuseMaps([m, m2], gw, gh);
+      models = [...models, alt];
+    } catch (e) { }
+  }
   // lintasan detail: potong ke area objek lalu jalankan lagi pada resolusi lebih tinggi
   const b = detail && bbox(m, gw, gh, .4);
   if (b) {
@@ -203,10 +212,17 @@ async function segment({ id, rgba, w, h, models, device, detail, clean }) {
     }
   }
   if (clean) m = cleanSpecks(m, gw, gh, .015);
+  let rimmed = false;
+  if (rim !== false) {
+    const oc = new OffscreenCanvas(gw, gh), cx = oc.getContext('2d', { willReadFrequently: true });
+    cx.imageSmoothingQuality = 'high'; cx.drawImage(bmp, 0, 0, gw, gh);
+    const t = trimRim(m, cx.getImageData(0, 0, gw, gh).data, gw, gh);
+    if (t !== m) { rimmed = true; m = clean ? cleanSpecks(t, gw, gh, .015) : t; }
+  }
   bmp.close && bmp.close();
   const u8 = new Uint8Array(gw * gh);
   for (let i = 0; i < u8.length; i++) u8[i] = Math.round(m[i] * 255);
-  post({ type: 'mask', id, mask: u8.buffer, gw, gh, passes, ms: Math.round(performance.now() - t0), ep, models }, [u8.buffer]);
+  post({ type: 'mask', id, mask: u8.buffer, gw, gh, passes, rimmed, ms: Math.round(performance.now() - t0), ep, models }, [u8.buffer]);
 }
 
 self.onmessage = async e => {

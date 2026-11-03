@@ -1,6 +1,6 @@
 // app.js — UI Hapus Background
-import * as ST from './store.js';
-import { Doc, DEFAULTS, PRESETS, presetOf, newSettings, fillSettings, mkCanvas, pixelsOf, inv, apply } from './render.js';
+import * as ST from './store.js?v=2026110302';
+import { Doc, DEFAULTS, PRESETS, presetOf, newSettings, fillSettings, mkCanvas, pixelsOf, inv, apply } from './render.js?v=2026110302';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -86,7 +86,7 @@ const wwait = new Map();
 let wlisten = null;
 function getWorker() {
   if (worker) return worker;
-  worker = new Worker('js/seg.worker.js', { type: 'module' });
+  worker = new Worker('js/seg.worker.js?v=2026110302', { type: 'module' });
   if (QS.get('models')) worker.postMessage({ type: 'config', base: QS.get('models') });
   worker.onmessage = e => {
     const m = e.data;
@@ -228,11 +228,11 @@ async function processItem(it, force) {
     }
   };
   const t0 = performance.now();
-  const r = await segment(rgba, it.w, it.h, { models, device: prefs.device, detail: it.settings.ai.detail, clean: it.settings.ai.clean });
+  const r = await segment(rgba, it.w, it.h, { models, device: prefs.device, detail: it.settings.ai.detail, clean: it.settings.ai.clean, rim: it.settings.ai.rim !== false });
   const u = new Uint8Array(r.mask);
   await ST.putBlob(it.id + ':coarse', await grayToBlob(u, r.gw, r.gh));
   const cur = (await ST.getItem(it.id)) || it;
-  Object.assign(cur, { gw: r.gw, gh: r.gh, status: 'done', err: null, ai: { q, ep: r.ep, ms: r.ms, passes: r.passes, models: r.models } });
+  Object.assign(cur, { gw: r.gw, gh: r.gh, status: 'done', err: null, ai: { q, ep: r.ep, ms: r.ms, passes: r.passes, rimmed: r.rimmed, models: r.models } });
   // thumbnail hasil
   try {
     const doc = new Doc({ w: cur.w, h: cur.h, bitmap: await createImageBitmap(new ImageData(new Uint8ClampedArray(rgba.buffer), cur.w, cur.h)), rgba, coarse: u, gw: r.gw, gh: r.gh, edit: null, s: fillSettings(cur.settings) });
@@ -812,13 +812,14 @@ const op = (k, list, cls = '') => `<div class="opts ${cls}">${list.map(o => `<bu
 const TABS = {
   ai() {
     const it = E.it || {}, a = it.ai || {};
-    const st = it.status === 'done' ? (it.note === 'alpha bawaan' ? 'Memakai transparansi bawaan PNG' : `Selesai · ${a.ms ? (a.ms / 1000).toFixed(1) + ' dtk' : ''}${a.passes > 1 ? ' · 2 lintasan' : ''}`) : it.status === 'err' ? 'Gagal: ' + esc(it.err || '') : it.status === 'proc' ? 'Memproses…' : 'Antre';
+    const st = it.status === 'done' ? (it.note === 'alpha bawaan' ? 'Memakai transparansi bawaan PNG' : `Selesai · ${a.ms ? (a.ms / 1000).toFixed(1) + ' dtk' : ''}${a.passes > 1 ? ' · 2 lintasan' : ''}${a.rimmed ? ' · garis tepi dibuang' : ''}`) : it.status === 'err' ? 'Gagal: ' + esc(it.err || '') : it.status === 'proc' ? 'Memproses…' : 'Antre';
     return `<h3>Hapus latar otomatis</h3>
       <div class="stat"><span>Status</span><b>${st}</b><span>Model</span><b>${a.q ? QUAL[a.q].label + ' · ' + (a.models || QUAL[a.q].models).map(m => m === 'isnet' ? 'IS-Net' : 'RMBG-1.4').join(' + ') : '–'}</b><span>Perangkat</span><b>${a.ep ? (a.ep === 'webgpu' ? 'GPU (WebGPU)' : 'CPU (WASM)') : '–'}</b><span>Ukuran</span><b>${it.w || '–'} × ${it.h || '–'} px</b></div>
       <h4>Kualitas AI</h4>
       ${op('ai.quality', [['auto', 'Otomatis'], ['ultra', 'Ultra', '2 model'], ['detail', 'Detail', 'rambut'], ['fast', 'Cepat', 'ringan']], 'c4')}
       ${tg('ai.detail', 'Lintasan detail (zoom ke objek)')}
       ${tg('ai.clean', 'Bersihkan bintik terpisah')}
+      ${tg('ai.rim', 'Buang garis tepi stiker / halo')}
       <button class="btn primary block" id="pRerun"><svg class="ic"><use href="#i-ai"/></svg>Proses ulang dengan AI</button>
       <p class="note">Suntingan kuas tetap dipertahankan. Hasil kurang pas? Perhalus di tab <b>Tepi</b>, atau pakai kuas <b>Hapus/Pulihkan</b> dan <b>Laso</b> di bilah kiri (aktifkan <b>Tepi pintar</b> untuk area rumit).</p>
       <div class="hr"></div>
@@ -885,6 +886,7 @@ const TABS = {
       ${op('adj.fx', [['none', 'Normal'], ['vivid', 'Cerah'], ['warm', 'Hangat'], ['cool', 'Dingin'], ['bw', 'Hitam-putih'], ['sepia', 'Sepia'], ['fade', 'Pudar']], '')}
       ${sl('adj.bright', 'Kecerahan', -100, 100)}${sl('adj.contrast', 'Kontras', -100, 100)}${sl('adj.sat', 'Saturasi', -100, 100)}
       ${sl('adj.warm', 'Kehangatan', -100, 100)}${sl('adj.sharp', 'Ketajaman', 0, 100)}
+      ${sl('adj.enh', 'Detail & ketajaman natural (otomatis)', 0, 100, 1, '%')}
       <button class="btn sm" id="pAdjReset">Atur ulang warna</button>`;
   },
   canvas() {
