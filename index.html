@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<script src="/amatu.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Hapus Background</title>
+<meta name="description" content="Hapus Background — hapus latar foto otomatis dengan AI di perangkat, tepi rambut detail, outline stiker, bayangan, latar baru, pas foto, ekspor PNG/JPG/PDF.">
+<meta name="theme-color" content="#121216">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%232563eb'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23a)'/%3E%3Cpath d='M16 7.5a4.3 4.3 0 1 1 0 8.6 4.3 4.3 0 0 1 0-8.6zM8.5 25c.4-4.6 3.6-7.4 7.5-7.4s7.1 2.8 7.5 7.4z' fill='%23fff' stroke='%230f172a' stroke-width='1.3' stroke-dasharray='2 1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v12m0 0-5-5m5 5 5-5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5m5 5H9.5a5.5 5.5 0 0 0 0 11H13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-move" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3 9 6m3-3 3 3m-3 15-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12m0-7.5v-1a1.5 1.5 0 0 1 3 0V12m0-7a1.5 1.5 0 0 1 3 0v7m0-4.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.6a6 6 0 0 1-4.6-2.2L4.6 15.4a1.6 1.6 0 0 1 2.3-2.2L8 14.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-erase" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4L13.3 4.7a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L11 21m-4 0h14M9 11l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-restore" viewBox="0 0 24 24"><path d="M9.06 11.9 17.6 3.4a2.1 2.1 0 0 1 3 3l-8.55 8.54M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-lasso" viewBox="0 0 24 24"><path d="M7 22a5 5 0 0 1-2-4M3.3 14A6.8 6.8 0 0 1 2 10c0-4.4 4.5-8 10-8s10 3.6 10 8-4.5 8-10 8a12 12 0 0 1-5-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="3 2.4"/><circle cx="5" cy="16" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-compare" viewBox="0 0 24 24"><path d="M12 3v18M5 5h4M5 19h4M15 5h4v14h-4M5 5v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V3m0 0L8 7m4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-ai" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-edge" viewBox="0 0 24 24"><path d="M4 20c0-8 6-16 16-16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 14c2-5 5-8 10-10M9 20c1-5 5-10 11-11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="1.5 2.5"/></symbol>
+    <symbol id="i-outline" viewBox="0 0 24 24"><path d="M12 3.5c3 0 5 2.2 5 5 0 2-1 3.2-2.2 4 3.3.8 5.7 3.6 6.2 7.5H3c.5-3.9 2.9-6.7 6.2-7.5C8 11.7 7 10.5 7 8.5c0-2.8 2-5 5-5z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-shadow" viewBox="0 0 24 24"><rect x="4" y="4" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M18 8v9a1 1 0 0 1-1 1H8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".45"/></symbol>
+    <symbol id="i-bg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 9h6V3M9 15h6V9m0 12v-6h6" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-color" viewBox="0 0 24 24"><path d="M12 3s6 6.4 6 11a6 6 0 0 1-12 0c0-4.6 6-11 6-11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 14.5a3 3 0 0 0 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-flip" viewBox="0 0 24 24"><path d="M12 3v18M8 7 3 17h5zM16 7l5 10h-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m21 16-5-5-9 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-zip" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M10 5h1m-1 3h1m-1 3h1m-1 3h1v3h-1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+  <!-- ================= BERANDA ================= -->
+  <section id="home">
+    <header class="h-head">
+      <div class="brand"><span class="logo"></span><div><b>Hapus Background</b><small>AI di perangkat · tepi detail · outline stiker · PNG/JPG/PDF</small></div></div>
+      <div class="sp"></div>
+      <button class="ib" id="hSettings" title="Pengaturan AI"><svg class="ic"><use href="#i-gear"/></svg></button>
+      <button class="ib" id="hTheme" title="Tema"><svg class="ic"><use href="#i-moon"/></svg></button>
+    </header>
+    <div class="drop" id="drop">
+      <div class="drop-art" aria-hidden="true"><div class="da-orig"></div><div class="da-cut"></div></div>
+      <div class="drop-tx">
+        <h1>Hapus latar foto secara otomatis</h1>
+        <p>Seret foto ke sini, tempel dengan <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>V</kbd>, atau pilih dari perangkat. Bisa banyak foto sekaligus — diproses berurutan.</p>
+        <div class="row">
+          <button class="btn primary lg" id="hUpload"><svg class="ic"><use href="#i-up"/></svg>Pilih foto</button>
+          <span class="mut sm">JPG, PNG, WEBP, HEIC* · diproses di perangkat Anda, tidak diunggah ke server</span>
+        </div>
+      </div>
+    </div>
+    <div class="feats">
+      <div><b>Tepi rambut detail</b><span>2 model AI digabung + penyempurnaan tepi resolusi penuh</span></div>
+      <div><b>Outline stiker</b><span>Warna, ketebalan, outline ganda, efek neon</span></div>
+      <div><b>Latar &amp; bayangan</b><span>Warna, gradien, gambar, blur, bayangan jatuh &amp; lantai</span></div>
+      <div><b>Pas foto &amp; produk</b><span>2×3, 3×4, 4×6 merah/biru, 1:1 putih marketplace</span></div>
+      <div><b>Sunting manual</b><span>Kuas hapus/pulihkan pintar, laso, perbandingan</span></div>
+      <div><b>Ekspor</b><span>PNG transparan, JPG, WEBP, PDF, ZIP banyak foto</span></div>
+    </div>
+    <div class="h-title"><b>Terakhir</b><span class="sp"></span><button class="btn sm" id="hClear" hidden>Hapus semua</button></div>
+    <div class="grid" id="hGrid"></div>
+  </section>
+
+  <!-- ================= EDITOR ================= -->
+  <section id="editor" hidden>
+    <header class="topbar">
+      <button class="ib" id="eBack" title="Beranda"><svg class="ic"><use href="#i-back"/></svg></button>
+      <input class="fname" id="eName" spellcheck="false" aria-label="Nama file">
+      <div class="tb-grp">
+        <button class="ib" id="eUndo" title="Urungkan (Ctrl+Z)"><svg class="ic"><use href="#i-undo"/></svg></button>
+        <button class="ib" id="eRedo" title="Ulangi (Ctrl+Shift+Z)"><svg class="ic"><use href="#i-redo"/></svg></button>
+      </div>
+      <div class="sp"></div>
+      <div class="tb-grp zoom">
+        <button class="ib" id="eZOut" title="Perkecil"><svg class="ic"><use href="#i-minus"/></svg></button>
+        <button class="zl" id="eZoom" title="Pas layar">100%</button>
+        <button class="ib" id="eZIn" title="Perbesar"><svg class="ic"><use href="#i-plus"/></svg></button>
+      </div>
+      <div class="seg view" id="eView" title="Tampilan">
+        <button data-v="result" class="on">Hasil</button><button data-v="mask">Masker</button><button data-v="overlay">Merah</button>
+      </div>
+      <button class="ib" id="eCompare" title="Bandingkan sebelum/sesudah (\)"><svg class="ic"><use href="#i-compare"/></svg></button>
+      <button class="btn primary" id="eExport"><svg class="ic"><use href="#i-down"/></svg><span>Unduh</span></button>
+    </header>
+    <div class="work">
+      <nav class="rail" id="rail">
+        <button data-tool="hand" title="Geser tampilan (H / Spasi)"><svg class="ic"><use href="#i-hand"/></svg><span>Geser</span></button>
+        <button data-tool="move" title="Pindah &amp; ubah ukuran objek (V)"><svg class="ic"><use href="#i-move"/></svg><span>Objek</span></button>
+        <button data-tool="erase" title="Kuas hapus (E)"><svg class="ic"><use href="#i-erase"/></svg><span>Hapus</span></button>
+        <button data-tool="restore" title="Kuas pulihkan (B)"><svg class="ic"><use href="#i-restore"/></svg><span>Pulihkan</span></button>
+        <button data-tool="lasso-e" title="Laso hapus (L)"><svg class="ic"><use href="#i-lasso"/></svg><span>Laso −</span></button>
+        <button data-tool="lasso-r" title="Laso pulihkan (Shift+L)"><svg class="ic"><use href="#i-lasso"/></svg><span>Laso +</span></button>
+      </nav>
+      <div class="stage" id="stage">
+        <canvas id="view"></canvas>
+        <div class="split" id="split" hidden><i></i><b>Sebelum</b><b>Sesudah</b></div>
+        <div class="brushbar" id="brushbar" hidden>
+          <label>Ukuran <input type="range" id="bSize" min="2" max="300" value="40"><output id="bSizeO">40</output></label>
+          <label>Kekerasan <input type="range" id="bHard" min="0" max="100" value="60"></label>
+          <label class="chk" title="Kuas hanya memengaruhi warna yang mirip dengan titik awal — untuk tepi rumit"><input type="checkbox" id="bSmart"> Tepi pintar</label>
+          <label id="bTolW">Toleransi <input type="range" id="bTol" min="5" max="100" value="30"></label>
+          <label class="chk"><input type="checkbox" id="bGhost" checked> Lihat asli</label>
+        </div>
+        <div class="busy" id="busy" hidden>
+          <div class="busy-card"><div class="spin"></div><b id="busyT">Memproses…</b><small id="busyS"></small><div class="bar"><i id="busyBar"></i></div></div>
+        </div>
+        <div class="toast" id="toast" hidden></div>
+      </div>
+      <aside class="panel" id="panel">
+        <nav class="tabs" id="tabs">
+          <button data-tab="ai" class="on"><svg class="ic"><use href="#i-ai"/></svg><span>AI</span></button>
+          <button data-tab="edge"><svg class="ic"><use href="#i-edge"/></svg><span>Tepi</span></button>
+          <button data-tab="outline"><svg class="ic"><use href="#i-outline"/></svg><span>Outline</span></button>
+          <button data-tab="shadow"><svg class="ic"><use href="#i-shadow"/></svg><span>Bayangan</span></button>
+          <button data-tab="bg"><svg class="ic"><use href="#i-bg"/></svg><span>Latar</span></button>
+          <button data-tab="adj"><svg class="ic"><use href="#i-color"/></svg><span>Warna</span></button>
+          <button data-tab="canvas"><svg class="ic"><use href="#i-crop"/></svg><span>Kanvas</span></button>
+          <button data-tab="export"><svg class="ic"><use href="#i-down"/></svg><span>Ekspor</span></button>
+        </nav>
+        <div class="pbody" id="pbody"></div>
+      </aside>
+    </div>
+    <footer class="strip" id="strip"></footer>
+  </section>
+</div>
+
+<div class="modal" id="modal" hidden><div class="mcard" id="mcard"></div></div>
+<input type="file" id="file" accept="image/*,.heic,.heif" multiple hidden>
+<input type="file" id="bgFile" accept="image/*" hidden>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
