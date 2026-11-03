@@ -232,7 +232,7 @@ async function processItem(it, force) {
   const u = new Uint8Array(r.mask);
   await ST.putBlob(it.id + ':coarse', await grayToBlob(u, r.gw, r.gh));
   const cur = (await ST.getItem(it.id)) || it;
-  Object.assign(cur, { gw: r.gw, gh: r.gh, status: 'done', err: null, ai: { q, ep: r.ep, ms: Math.round(performance.now() - t0), passes: r.passes, models: r.models } });
+  Object.assign(cur, { gw: r.gw, gh: r.gh, status: 'done', err: null, ai: { q, ep: r.ep, ms: r.ms, passes: r.passes, models: r.models } });
   // thumbnail hasil
   try {
     const doc = new Doc({ w: cur.w, h: cur.h, bitmap: await createImageBitmap(new ImageData(new Uint8ClampedArray(rgba.buffer), cur.w, cur.h)), rgba, coarse: u, gw: r.gw, gh: r.gh, edit: null, s: fillSettings(cur.settings) });
