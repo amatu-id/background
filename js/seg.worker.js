@@ -59,14 +59,15 @@ async function download(url, mb, tries) {
       const res = await fetch(url, got ? { headers: { Range: 'bytes=' + got + '-' } } : undefined);
       if (!res.ok) { err = new Error('Gagal mengunduh model (HTTP ' + res.status + ')'); if (res.status === 404) break; continue; }
       if (got && res.status !== 206) { chunks.length = 0; got = 0; }   // server mengabaikan Range → mulai ulang
-      if (!total) total = (+res.headers.get('content-length') || 0) + got || mb * 1e6;
+      // content-length dari server terkompresi (gzip) ≠ ukuran asli → pakai perkiraan ukuran model
+      if (!total) total = res.headers.get('content-encoding') ? mb * 1e6 : (+res.headers.get('content-length') || 0) + got || mb * 1e6;
       const reader = res.body.getReader();
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
         chunks.push(value); got += value.length;
         const now = Date.now();
-        if (now - last > 120) { last = now; post({ type: 'progress', stage: 'download', loaded: got, total }); }
+        if (now - last > 120) { last = now; post({ type: 'progress', stage: 'download', loaded: got, total: Math.max(total, got) }); }
       }
       err = null;
       break;
